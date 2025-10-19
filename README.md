@@ -75,11 +75,6 @@
         </h1>
         <p class="text-center text-gray-400">Track and share raid respawn schedules in real-time.</p>
 
-        <!-- User/Auth Status -->
-        <div class="text-xs text-center text-gray-500 mt-2">
-            User ID: <span id="userIdDisplay" class="font-mono text-gray-400">Loading...</span>
-        </div>
-
         <!-- Main Card -->
         <div class="card p-4 md:p-6 rounded-xl shadow-2xl">
             <!-- Tabs -->
@@ -166,12 +161,11 @@
 
         let db;
         let auth;
-        let currentUserId = null;
+        // currentUserId is no longer needed as a user-facing concept
         let realtimeTimerInterval = null;
         const bossesCollectionPath = `/artifacts/${appId}/public/data/boss_timers`;
 
         // DOM elements
-        const userIdDisplay = document.getElementById('userIdDisplay');
         const tabAdd = document.getElementById('tabAdd');
         const tabList = document.getElementById('tabList');
         const viewAdd = document.getElementById('viewAdd');
@@ -206,7 +200,7 @@
             
             if (diffMs <= 0) return { status: 'SPAWNED', color: 'text-red-400 font-bold' };
 
-            const totalSeconds = Math.floor(diffMs / 1000);
+            const totalSeconds = Math.floor(diffMs / 1000); 
             
             const days = Math.floor(totalSeconds / (3600 * 24));
             const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
@@ -252,12 +246,11 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Auth check and sign-in
+                // Auth check and silent sign-in (mandatory for Firestore access)
                 await new Promise(resolve => {
                     onAuthStateChanged(auth, async (user) => {
                         if (user) {
-                            currentUserId = user.uid;
-                            userIdDisplay.textContent = currentUserId.substring(0, 8) + '...'; // Truncate for display
+                            // currentUserId = user.uid; // No longer storing this as a global variable
                             resolve();
                         } else {
                             // Sign in if no user is present
@@ -275,13 +268,12 @@
 
             } catch (error) {
                 console.error("Firebase initialization or authentication error:", error);
-                userIdDisplay.textContent = 'Auth Failed';
                 loadingIndicator.textContent = 'Failed to load schedules.';
             }
         };
 
         const addBossTimer = async () => {
-            if (!currentUserId || !db) {
+            if (!db) {
                 displayMessage('System not ready. Please wait for initialization.', true);
                 return;
             }
@@ -311,7 +303,7 @@
                     name: name,
                     todTimestamp: new Date(todValue).toISOString(), // Store TOD as ISO string
                     intervalHours: intervalHours,
-                    userId: currentUserId, // User who created it
+                    // Removed currentUserId field to simplify "free use" data structure
                     createdAt: new Date().toISOString()
                 });
 
@@ -330,7 +322,7 @@
         };
 
         const deleteBossTimer = async (docId) => {
-            if (!currentUserId || !db) return;
+            if (!db) return;
             try {
                 await deleteDoc(doc(db, bossesCollectionPath, docId));
                 // UI updates via onSnapshot
@@ -340,7 +332,7 @@
         };
 
         const resetBossTimer = async (docId) => {
-            if (!currentUserId || !db) return;
+            if (!db) return;
             try {
                 // Set the new Time of Death to the current time (now)
                 const newTodTimestamp = new Date().toISOString();
